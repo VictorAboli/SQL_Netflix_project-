@@ -40,6 +40,22 @@ The goal of this project is to answer important business questions such as:
 **Source:** Kaggle - Netflix Movies and TV Shows Dataset
 
 The dataset contains information about Netflix titles including:
+DROP TABLE IF EXISTS Netflix;
+CREATE TABLE Netflix
+(
+    show_id        NVARCHAR(50),
+    type           NVARCHAR(20),
+    title          NVARCHAR(300),
+    director       NVARCHAR(MAX),
+    cast           NVARCHAR(MAX),
+    country        NVARCHAR(300),
+    date_added     NVARCHAR(50),
+    release_year   INT,
+    rating         NVARCHAR(20),
+    duration       NVARCHAR(20),
+    listed_in      NVARCHAR(500),
+    description    NVARCHAR(MAX)
+);
 
 | Column | Description |
 |---|---|
@@ -55,7 +71,6 @@ The dataset contains information about Netflix titles including:
 | duration | Movie length or TV show seasons |
 | listed_in | Genre/category |
 | description | Content summary |
-
 ---
 
 # Tools & Technologies Used
