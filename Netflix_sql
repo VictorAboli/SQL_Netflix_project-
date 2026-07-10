@@ -1,0 +1,220 @@
+CREATE Database Netflix_movie
+
+DROP TABLE IF EXISTS Netflix;
+CREATE TABLE Netflix
+(
+    show_id        NVARCHAR(50),
+    type           NVARCHAR(20),
+    title          NVARCHAR(300),
+    director       NVARCHAR(MAX),
+    cast           NVARCHAR(MAX),
+    country        NVARCHAR(300),
+    date_added     NVARCHAR(50),
+    release_year   INT,
+    rating         NVARCHAR(20),
+    duration       NVARCHAR(20),
+    listed_in      NVARCHAR(500),
+    description    NVARCHAR(MAX)
+);
+ALTER TABLE Netflix
+ALTER COLUMN duration NVARCHAR(50) NULL;
+
+BULK INSERT dbo.Netflix
+FROM 'C:\Users\nihar\Downloads\netflix_titles.csv'
+WITH
+(
+    FORMAT='CSV',
+    FIRSTROW=2,
+    FIELDQUOTE='"',
+    ROWTERMINATOR='0x0a',
+    TABLOCK
+);
+
+-- 15 Business Problems & Solutions
+
+--1. Count the number of Movies vs TV Shows
+
+SELECT 
+    type,
+    COUNT(*) AS Total_number
+    FROM netflix
+GROUP BY type
+
+--2. Find the most common rating for movies and TV shows
+
+SELECT 
+    type,
+    rating
+FROM 
+(
+    SELECT 
+    type, 
+    COUNT(*) AS count_num,
+    RANK() OVER(PARTITION BY type ORDER BY COUNT(*) DESC ) AS Ranking_number,
+    rating
+    FROM Netflix
+    GROUP BY type, rating
+)t
+WHERE Ranking_number = 1
+
+
+
+--3. List all movies released in a specific year (e.g., 2020)
+
+SELECT 
+    type,
+    title,
+    release_year
+FROM Netflix
+    WHERE type = 'Movie' AND release_year = 2020
+
+
+--4. Find the top 5 countries with the most content on Netflix
+
+SELECT TOP 5 
+TRIM(value) AS country,
+COUNT(*) AS Most_content
+FROM netflix
+CROSS APPLY STRING_SPLIT(country, ',') 
+GROUP BY TRIM(value) 
+ORDER by COUNT(*) DESC
+
+--5. Identify the longest movie
+
+SELECT 
+    title,
+    duration,
+    type
+FROM dbo.netflix
+WHERE 
+    type = 'Movie' AND 
+    duration = (SELECT MAX(duration) FROM netflix)
+
+
+
+--6. Find content added in the last 5 years
+
+SELECT *,
+DATEPART(YEAR, date_added) AS Year_
+FROM netflix
+WHERE YEAR(date_added) >= YEAR(GETDATE()) - 5
+ORDER BY Year_
+
+
+
+--7. Find all the movies/TV shows by director 'Rajiv Chilaka'!
+
+SELECT 
+    title,director
+FROM netflix
+    WHERE director LIKE '%Rajiv Chilaka%' AND type = 'movie'
+
+
+
+--8. List all TV shows with more than 5 seasons
+
+SELECT * 
+FROM netflix
+WHERE type = 'TV Show'
+  AND TRY_CAST(LEFT(duration, CHARINDEX(' ', duration) - 1) AS INT) > 5;  --- 
+--- TRY_CAST= Converts the numeric string to compare with integer 
+--- CHARINDEX = Find the exact position of the space character 
+-- LEFT () =Grabs the character before the space if -1 consider the backwards number or 1 consider the forward number 
+--  LEFT   -3-2,-1,VALUE ,1,2,3   RIGHT 
+
+
+--9. Count the number of content items in each genre
+
+
+SELECT 
+count(*) AS Number_content,
+TRIM(value) AS Genre
+FROM netflix 
+CROSS APPLY STRING_SPLIT (listed_in, ',')
+GROUP BY TRIM(value)
+ORDER BY count(*) DESC
+-- STRING-SPLIT HELPS TO SEPARATE THE VALUES IN COLUMNS AND MENTION IT IN PARENTHESIS
+--  TRIM TO REMOVE THE UNWANTED SPACE IN  THE CELL 
+
+
+--10.Find each year and the average numbers of content release in India on netflix. return top 5 year with highest avg content release!
+
+SELECT TOP 5
+    Year_,
+    Total_Count,
+    -- Calculate percentage contribution: (Yearly Count / Grand Total) * 100
+    ROUND(
+        CAST(Total_Count AS FLOAT) / 
+        (SELECT COUNT(*) FROM netflix WHERE country = 'India') * 100, 
+        2
+    ) AS avg_content_per_year
+FROM (
+    SELECT  
+        DATEPART(YEAR, date_added) AS Year_,
+        COUNT(*) AS Total_Count
+    FROM netflix 
+    WHERE country = 'India' AND date_added IS NOT NULL
+    GROUP BY DATEPART(YEAR, date_added)
+) t
+ORDER BY Year_;
+-- Calculating average percentage for each year for India country 
+
+
+--11. List all movies that are documentaries
+
+SELECT 
+* 
+FROM netflix
+CROSS APPLY string_split(listed_in,',') 
+WHERE listed_in LIKE '%documentaries%'
+
+
+
+--12. Find all content without a director
+
+SELECT *
+FROM netflix
+WHERE director IS NULL
+
+
+--13. Find how many movies actor 'Salman Khan' appeared in last 10 years!
+
+
+SELECT * FROM netflix
+WHERE cast LIKE '%Salman Khan%'
+AND release_year > YEAR(GETDATE()) -10
+--There is release_year INT and (getdate) DATETIME So We only need year to get to calculate 
+
+
+--14. Find the top 10 actors who have appeared in the highest number of movies produced in India.
+
+
+SELECT TOP 10
+TRIM(value) AS Actor_name,
+COUNT(*) AS Total_content
+FROM Netflix
+CROSS APPLY String_split(cast, ',') 
+WHERE country LIKE '%India'
+GROUP BY TRIM(value) 
+ORDER BY Total_content DESC
+-- STRING_SPLIT to split all the record in the field in arrange them in each row in one single columns 
+-- And aggregate with count of total content and filter it with India and order by desc can find the highest number
+
+
+--15.Categorize the content based on the presence of the keywords 'kill' and 'violence' inthe description field. Label content containing these keywords as 'Bad' and all other content as 'Good'. Count how many items fall into each category.
+SELECT
+COUNT(*) AS Total_Num_of_content,
+Review
+FROM(
+SELECT *,
+CASE WHEN description LIKE '%kill%' THEN 'Bad Content'
+     WHEN description LIKE '%violence%' THEN 'Bad Content'
+     ELSE 'Good Content'
+END AS Review 
+FROM netflix
+)t 
+GROUP BY Review
+
+
+
+
